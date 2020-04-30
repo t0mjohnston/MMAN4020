@@ -1,0 +1,53 @@
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from time import time
+from flask import Flask, render_template, make_response
+import json
+
+app = Flask(__name__)
+
+scope = ["https://spreadsheets.google.com/feeds",'https://www.googleapis.com/auth/spreadsheets',"https://www.googleapis.com/auth/drive.file","https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name('Creds.json', scope)
+client = gspread.authorize(creds)
+
+sh = client.open('Server Data')
+shList = sh.worksheets()
+print(shList)
+
+@app.route("/")
+@app.route("/home", methods=["GET", "POST"])
+def home():
+    return render_template('Home.html')
+
+
+@app.route('/data', methods=["GET", "POST"])
+def data():
+    result = sh.worksheet("SensorData")
+    posData = result.col_values(1)
+    currTime = time()*1000
+    currentData = [currTime, posData[-1]]
+
+    response = make_response(json.dumps(currentData))
+    response.content_type = 'application/json'
+    return response
+
+@app.route("/about")
+def about():
+    result = sh.worksheet("SendData")
+    return render_template('About.html', sheet=result)
+
+
+@app.route("/robotdata")
+def robotdata():
+    sheet1 = sh.worksheet("SensorData")
+    exampleData = sheet1.get_all_records()
+    return render_template('RobotData.html', data=exampleData, len = len(exampleData))
+
+
+@app.route('/stuff', methods=["GET", "POST"])
+def main():
+    return render_template('stuff.html')
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
